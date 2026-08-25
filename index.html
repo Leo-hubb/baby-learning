@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./icon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="./icon-512.png" />
+    <link rel="apple-touch-icon" href="./icon-192.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="./icon-192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="./icon-512.png" />
+    <link rel="manifest" href="./manifest.json" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#FFB6C1" />
+    <meta name="description" content="宝贝学习乐园 - 为4岁儿童打造的综合学习平台：英语、识字、数学、逻辑、闯关冒险" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="学习乐园" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="msapplication-TileColor" content="#FFB6C1" />
+    <meta name="msapplication-TileImage" content="./icon-192.png" />
+    <meta property="og:title" content="宝贝学习乐园" />
+    <meta property="og:description" content="儿童综合学习平台：英语、识字、数学、逻辑、闯关冒险" />
+    <meta property="og:image" content="./icon-512.png" />
+    <title>宝贝学习乐园</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700;800&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      /* 启动画面背景色 */
+      #splash-screen {
+        position: fixed; inset: 0; z-index: 9999;
+        background: linear-gradient(135deg, #FFB6C1, #87CEEB, #FFFACD, #98FB98, #DDA0DD);
+        background-size: 400% 400%;
+        animation: gradientShift 8s ease infinite;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        transition: opacity 0.5s ease;
+      }
+      #splash-screen.hidden { opacity: 0; pointer-events: none; }
+      #splash-screen .splash-icon { font-size: 80px; animation: bounce 1s ease infinite; }
+      #splash-screen .splash-title { font-size: 28px; font-weight: 800; color: white; margin-top: 16px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
+      @keyframes gradientShift { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+      @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-15px)} }
+    </style>
+  </head>
+  <body>
+    <div id="splash-screen">
+      <div class="splash-icon">🌈</div>
+      <div class="splash-title">宝贝学习乐园</div>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
