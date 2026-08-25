@@ -1,7 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppState } from '../store/useStore';
 import { generateAdventureQuestions } from '../data/adventure';
-import { speak, playCorrectSound, playWrongSound } from '../utils/speech';
+import {
+  speak, speakWelcome, speakPraise, speakEncourage,
+  speakLevelStart, speakLevelComplete,
+  readMathQuestion,
+  playCorrectSound, playWrongSound, stopSpeaking
+} from '../utils/speech';
 import type { AdventureQuestion } from '../types';
 import StarBurst from '../components/StarBurst';
 import Confetti from '../components/Confetti';
@@ -20,6 +25,21 @@ export default function Adventure() {
   const [earnedStars, setEarnedStars] = useState(0);
   const [starTrigger, setStarTrigger] = useState(0);
   const [confetti, setConfetti] = useState(false);
+  const hasWelcomed = useRef(false);
+
+  // 进入模块时播放欢迎语
+  useEffect(() => {
+    if (!hasWelcomed.current) {
+      hasWelcomed.current = true;
+      const timer = setTimeout(() => speakWelcome('adventure'), 500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // 离开页面时停止语音
+  useEffect(() => {
+    return () => stopSpeaking();
+  }, []);
 
   const isLevelUnlocked = (level: number) => {
     if (level === 1) return true;
@@ -35,20 +55,47 @@ export default function Adventure() {
     setSelected(null);
     setShowResult(false);
     setView('playing');
+    // 关卡开始语音
+    setTimeout(() => speakLevelStart(level), 400);
+  };
+
+  // 朗读题目（支持所有题型）
+  const speakQuestion = (q: AdventureQuestion) => {
+    if (q.audioText && q.audioLang) {
+      speak(q.audioText, q.audioLang);
+    } else if (q.module === 'math') {
+      const match = q.question.match(/(\d+)\s*([+-])\s*(\d+)/);
+      if (match) {
+        speak(readMathQuestion(parseInt(match[1]), parseInt(match[3]), match[2] as '+' | '-'), 'zh-CN', 0.9);
+      } else {
+        speak(q.question, 'zh-CN', 0.9);
+      }
+    } else if (q.module === 'logic') {
+      speak('找规律，下一个是什么？', 'zh-CN', 0.9);
+    } else {
+      speak(q.question, 'zh-CN', 0.9);
+    }
   };
 
   const playAudio = (q: AdventureQuestion) => {
-    if (q.audioText && q.audioLang) {
-      speak(q.audioText, q.audioLang);
-    }
+    speakQuestion(q);
   };
 
+  // 题目变化时自动朗读
   useEffect(() => {
-    if (view === 'playing' && questions[qIndex]?.audioText) {
-      const timer = setTimeout(() => playAudio(questions[qIndex]), 300);
+    if (view === 'playing' && questions[qIndex]) {
+      const timer = setTimeout(() => speakQuestion(questions[qIndex]), 600);
       return () => clearTimeout(timer);
     }
   }, [qIndex, view, questions]);
+
+  // 结果页面语音
+  useEffect(() => {
+    if (view === 'result') {
+      const timer = setTimeout(() => speakLevelComplete(earnedStars), 600);
+      return () => clearTimeout(timer);
+    }
+  }, [view, earnedStars]);
 
   const handleAnswer = (idx: number) => {
     if (showResult) return;
@@ -58,9 +105,11 @@ export default function Adventure() {
     const correct = idx === q.answer;
     if (correct) {
       playCorrectSound();
+      setTimeout(() => speakPraise(), 300);
       setCorrectCount(c => c + 1);
     } else {
       playWrongSound();
+      setTimeout(() => speakEncourage(), 300);
     }
     setTimeout(() => {
       if (qIndex + 1 >= questions.length) {

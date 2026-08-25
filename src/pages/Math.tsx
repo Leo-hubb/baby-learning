@@ -1,7 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppState } from '../store/useStore';
 import { numberCards, generateMathQuestion, generateCountingQuestion } from '../data/math';
-import { speak, playCorrectSound, playWrongSound } from '../utils/speech';
+import {
+  speak, speakWelcome, speakPraise, speakEncourage,
+  readMathQuestion, readNumber,
+  playCorrectSound, playWrongSound, stopSpeaking
+} from '../utils/speech';
 import type { MathQuestion } from '../types';
 import StarBurst from '../components/StarBurst';
 
@@ -17,8 +21,18 @@ export default function Math() {
   const [streak, setStreak] = useState(0);
   const [totalAnswered, setTotalAnswered] = useState(0);
   const [starTrigger, setStarTrigger] = useState(0);
+  const hasWelcomed = useRef(false);
 
   const numbersDone = state.progress['math:numbers']?.status === 'completed';
+
+  // 进入模块时播放欢迎语
+  useEffect(() => {
+    if (!hasWelcomed.current) {
+      hasWelcomed.current = true;
+      const timer = setTimeout(() => speakWelcome('math'), 500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   const generateQuestion = (type: 'addition' | 'subtraction' | 'counting') => {
     const q = type === 'counting' ? generateCountingQuestion() : generateMathQuestion(type);
@@ -32,9 +46,40 @@ export default function Math() {
     if (tab === 'counting') generateQuestion('counting');
   }, [tab]);
 
+  // 题目变化时自动朗读
+  useEffect(() => {
+    if (question && (tab === 'addition' || tab === 'counting')) {
+      const timer = setTimeout(() => {
+        if (question.type === 'counting') {
+          speak('数一数有多少个？', 'zh-CN', 0.9);
+        } else {
+          // 解析算式
+          const match = question.question.match(/(\d+)\s*([+-])\s*(\d+)/);
+          if (match) {
+            speak(readMathQuestion(parseInt(match[1]), parseInt(match[3]), match[2] as '+' | '-'), 'zh-CN', 0.9);
+          } else {
+            speak(question.question, 'zh-CN', 0.9);
+          }
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [question, tab]);
+
+  // 选中数字时自动朗读
+  useEffect(() => {
+    if (currentNumber !== null && tab === 'numbers') {
+      speak(readNumber(currentNumber), 'zh-CN', 0.85);
+    }
+  }, [currentNumber, tab]);
+
+  // 离开页面时停止语音
+  useEffect(() => {
+    return () => stopSpeaking();
+  }, []);
+
   const handleNumberClick = (num: number) => {
     setCurrentNumber(num);
-    speak(String(num), 'zh-CN');
   };
 
   const handleAnswer = (idx: number) => {
@@ -45,6 +90,7 @@ export default function Math() {
     setTotalAnswered(t => t + 1);
     if (correct) {
       playCorrectSound();
+      setTimeout(() => speakPraise(), 300);
       setStreak(s => s + 1);
       const newBadges = addStars(1);
       setStarTrigger(t => t + 1);
@@ -54,15 +100,17 @@ export default function Math() {
       if (streak + 1 >= 5) {
         addStars(2);
         setStreak(0);
+        setTimeout(() => speak('连续答对五题，太棒了！', 'zh-CN', 1.0, 1.2), 600);
       }
     } else {
       playWrongSound();
+      setTimeout(() => speakEncourage(), 300);
       setStreak(0);
     }
     setTimeout(() => {
       if (tab === 'addition') generateQuestion(globalThis.Math.random() > 0.5 ? 'addition' : 'subtraction');
       if (tab === 'counting') generateQuestion('counting');
-    }, 1200);
+    }, 1500);
   };
 
   // Mark numbers as completed when all 0-20 clicked
@@ -148,7 +196,16 @@ export default function Math() {
           </div>
           <div className="text-center mb-8">
             <div className="text-6xl font-extrabold text-candy-blueDark mb-2">{question.question}</div>
-            <div className="text-4xl">{question.emoji}</div>
+            <div className="text-4xl mb-2">{question.emoji}</div>
+            <button
+              onClick={() => {
+                const match = question.question.match(/(\d+)\s*([+-])\s*(\d+)/);
+                if (match) speak(readMathQuestion(parseInt(match[1]), parseInt(match[3]), match[2] as '+' | '-'), 'zh-CN');
+              }}
+              className="inline-flex items-center gap-1 bg-candy-blue text-white px-4 py-2 rounded-full text-sm font-bold min-h-[40px] active:scale-95 transition-transform"
+            >
+              🔊 再听一遍
+            </button>
           </div>
           <div className="grid grid-cols-2 gap-3">
             {question.options.map((opt, idx) => (

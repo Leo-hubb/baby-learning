@@ -1,17 +1,38 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useAppState } from '../store/useStore';
 import { triggerInstall, isPWAInstalled, getInstallPrompt } from '../main';
+import {
+  speak, setSpeechEnabled, getSpeechEnabled,
+  setSpeechRate, getSpeechRate, stopSpeaking
+} from '../utils/speech';
 
 export default function Settings() {
   const { state, resetProgress, exportData } = useAppState();
   const [parentMode, setParentMode] = useState(false);
   const [password, setPassword] = useState('');
   const [showQR, setShowQR] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(getSpeechEnabled());
+  const [speechRate, setSpeechRateState] = useState(getSpeechRate());
   const [resetConfirm, setResetConfirm] = useState<string | null>(null);
 
   const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+
+  // 同步语音设置
+  useEffect(() => {
+    setSpeechEnabled(soundEnabled);
+  }, [soundEnabled]);
+
+  useEffect(() => {
+    setSpeechRate(speechRate);
+  }, [speechRate]);
+
+  const testSpeech = () => {
+    stopSpeaking();
+    setTimeout(() => {
+      speak('你好，欢迎来到宝贝学习乐园！', 'zh-CN', speechRate);
+    }, 100);
+  };
 
   const handleParentLogin = () => {
     if (password === '1234') {
@@ -114,15 +135,45 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Sound toggle */}
-      <div className="bg-white rounded-candy p-4 mb-4 shadow-sm flex items-center justify-between">
-        <span className="font-bold text-gray-700">🔊 音效</span>
-        <button
-          onClick={() => setSoundEnabled(!soundEnabled)}
-          className={`w-14 h-8 rounded-full transition-all min-h-[32px] ${soundEnabled ? 'bg-candy-green' : 'bg-gray-300'}`}
-        >
-          <div className={`w-6 h-6 bg-white rounded-full shadow transition-transform ${soundEnabled ? 'translate-x-7' : 'translate-x-1'}`} />
-        </button>
+      {/* Voice settings */}
+      <div className="bg-white rounded-candy p-4 mb-4 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <span className="font-bold text-gray-700">🔊 语音朗读</span>
+          <button
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            className={`w-14 h-8 rounded-full transition-all min-h-[32px] ${soundEnabled ? 'bg-candy-green' : 'bg-gray-300'}`}
+          >
+            <div className={`w-6 h-6 bg-white rounded-full shadow transition-transform ${soundEnabled ? 'translate-x-7' : 'translate-x-1'}`} />
+          </button>
+        </div>
+        {soundEnabled && (
+          <div className="space-y-4 pt-2 border-t border-gray-100">
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-gray-600">朗读速度</span>
+                <span className="text-sm font-bold text-candy-blueDark">{speechRate.toFixed(1)}x</span>
+              </div>
+              <input
+                type="range"
+                min="0.5"
+                max="1.5"
+                step="0.1"
+                value={speechRate}
+                onChange={e => setSpeechRateState(parseFloat(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-candy-pinkDark"
+              />
+              <div className="flex justify-between text-xs text-gray-400 mt-1">
+                <span>慢</span><span>正常</span><span>快</span>
+              </div>
+            </div>
+            <button
+              onClick={testSpeech}
+              className="w-full btn-blue text-sm py-2"
+            >
+              🔊 测试语音
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Parent mode */}

@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAppState } from '../store/useStore';
 import { literacyLevels, getLevelChars, getTotalCharCount } from '../data/literacy';
-import { speak, playCorrectSound, playWrongSound, playStarSound } from '../utils/speech';
+import {
+  speak, speakWelcome, speakPraise, speakEncourage,
+  playCorrectSound, playWrongSound, playStarSound, stopSpeaking
+} from '../utils/speech';
 import type { ChineseChar } from '../types';
 import StarBurst from '../components/StarBurst';
 import Confetti from '../components/Confetti';
@@ -20,6 +23,61 @@ export default function Literacy() {
   const [starTrigger, setStarTrigger] = useState(0);
   const [confetti, setConfetti] = useState(false);
   const [strokeAnimKey, setStrokeAnimKey] = useState(0);
+  const hasWelcomed = useRef(false);
+
+  // 进入模块时播放欢迎语
+  useEffect(() => {
+    if (!hasWelcomed.current) {
+      hasWelcomed.current = true;
+      const timer = setTimeout(() => speakWelcome('literacy'), 500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // 进入汉字学习时自动朗读
+  useEffect(() => {
+    if (view === 'learn' && currentChar && learnStep === 0) {
+      const timer = setTimeout(() => {
+        speak(currentChar.char, 'zh-CN');
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [view, currentChar, learnStep]);
+
+  // 切换到组词步骤时自动朗读第一个组词
+  useEffect(() => {
+    if (view === 'learn' && currentChar && learnStep === 2 && currentChar.words.length > 0) {
+      const timer = setTimeout(() => {
+        speak(currentChar.words[0], 'zh-CN');
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [view, currentChar, learnStep]);
+
+  // 切换到例句步骤时自动朗读
+  useEffect(() => {
+    if (view === 'learn' && currentChar && learnStep === 3) {
+      const timer = setTimeout(() => {
+        speak(currentChar.example, 'zh-CN', 0.85);
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [view, currentChar, learnStep]);
+
+  // 切换到练习步骤时自动朗读
+  useEffect(() => {
+    if (view === 'learn' && currentChar && learnStep === 4) {
+      const timer = setTimeout(() => {
+        speak(currentChar.char, 'zh-CN');
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [view, currentChar, learnStep]);
+
+  // 离开页面时停止语音
+  useEffect(() => {
+    return () => stopSpeaking();
+  }, []);
 
   const masteredCount = Object.values(state.progress).filter(
     p => p.module === 'literacy' && p.status === 'mastered'
@@ -71,12 +129,14 @@ export default function Literacy() {
     const correct = idx === q.answer;
     if (correct) {
       playCorrectSound();
+      setTimeout(() => speakPraise(), 300);
       updateProgress('literacy', currentChar.char, { status: 'mastered', score: 1 });
       const newBadges = addStars(2);
       setStarTrigger(t => t + 1);
       if (newBadges.length > 0) setConfetti(true);
     } else {
       playWrongSound();
+      setTimeout(() => speakEncourage(), 300);
       updateProgress('literacy', currentChar.char, { status: 'in_progress' });
     }
   };
@@ -142,6 +202,16 @@ export default function Literacy() {
       setReviewChars(shuffled);
     }, []);
 
+    // 复习题目自动朗读
+    useEffect(() => {
+      if (reviewChars.length > 0 && reviewIdx < reviewChars.length && !reviewDone) {
+        const timer = setTimeout(() => {
+          speak(reviewChars[reviewIdx].char, 'zh-CN');
+        }, 600);
+        return () => clearTimeout(timer);
+      }
+    }, [reviewIdx, reviewChars, reviewDone]);
+
     if (masteredChars.length < 3) {
       return (
         <div className="text-center py-12">
@@ -182,9 +252,11 @@ export default function Literacy() {
       setReviewShow(true);
       if (idx === answerIdx) {
         playCorrectSound();
+        setTimeout(() => speakPraise(), 300);
         setReviewScore(s => s + 1);
       } else {
         playWrongSound();
+        setTimeout(() => speakEncourage(), 300);
       }
       setTimeout(() => {
         if (reviewIdx + 1 >= reviewChars.length) {

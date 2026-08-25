@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppState } from '../store/useStore';
 import { englishLevels, getUnitById } from '../data/english';
-import { speak, playCorrectSound, playWrongSound, playStarSound } from '../utils/speech';
+import {
+  speak, speakWelcome, speakPraise, speakEncourage,
+  playCorrectSound, playWrongSound, playStarSound, stopSpeaking
+} from '../utils/speech';
 import type { EnglishUnit } from '../types';
 import StarBurst from '../components/StarBurst';
 import Confetti from '../components/Confetti';
@@ -19,6 +22,51 @@ export default function English() {
   const [sentenceRead, setSentenceRead] = useState(false);
   const [starTrigger, setStarTrigger] = useState(0);
   const [confetti, setConfetti] = useState(false);
+  const hasWelcomed = useRef(false);
+
+  // 进入模块时播放欢迎语
+  useEffect(() => {
+    if (!hasWelcomed.current) {
+      hasWelcomed.current = true;
+      const timer = setTimeout(() => speakWelcome('english'), 500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // 进入单元时朗读单元标题
+  useEffect(() => {
+    if (view === 'learn' && currentUnit) {
+      const timer = setTimeout(() => {
+        speak(`Unit ${currentUnit.unitNumber}, ${currentUnit.title}`, 'en-US', 0.85);
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [view, currentUnit]);
+
+  // 切换到单词步骤时自动朗读第一个单词
+  useEffect(() => {
+    if (view === 'learn' && step === 'words' && currentUnit && currentUnit.words.length > 0) {
+      const timer = setTimeout(() => {
+        speak(currentUnit.words[0].word, 'en-US');
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [view, step, currentUnit]);
+
+  // 切换到句型步骤时自动朗读
+  useEffect(() => {
+    if (view === 'learn' && step === 'sentences' && currentUnit && currentUnit.sentences.length > 0) {
+      const timer = setTimeout(() => {
+        speak(currentUnit.sentences[0], 'en-US', 0.85);
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [view, step, currentUnit]);
+
+  // 离开页面时停止语音
+  useEffect(() => {
+    return () => stopSpeaking();
+  }, []);
 
   // Check if level is unlocked
   const isLevelUnlocked = (level: number) => {
@@ -67,6 +115,20 @@ export default function English() {
     const [selected, setSelected] = useState<number | null>(null);
     const [showResult, setShowResult] = useState(false);
 
+    // 游戏结束语音
+    useEffect(() => {
+      if (gameDone) {
+        const timer = setTimeout(() => {
+          if (gameScore >= 80) {
+            speak('太棒了！单元完成！', 'zh-CN', 1.0, 1.2);
+          } else {
+            speak('再试一次，加油！', 'zh-CN', 0.9, 1.1);
+          }
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    }, [gameDone, gameScore]);
+
     if (!currentUnit) return null;
 
     // Build questions based on game type
@@ -89,6 +151,16 @@ export default function English() {
     const totalQ = Math.min(questions.length, 5);
     const q = questions[currentQ % questions.length];
 
+    // 题目变化时自动朗读
+    useEffect(() => {
+      if (!gameDone && q) {
+        const timer = setTimeout(() => {
+          speak(q.word, 'en-US');
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    }, [currentQ, gameDone, q]);
+
     const handleSelect = (idx: number) => {
       if (showResult) return;
       setSelected(idx);
@@ -96,9 +168,11 @@ export default function English() {
       const correct = idx === q.answer;
       if (correct) {
         playCorrectSound();
+        setTimeout(() => speakPraise(), 300);
         setGameScore(prev => prev + 20);
       } else {
         playWrongSound();
+        setTimeout(() => speakEncourage(), 300);
       }
       setTimeout(() => {
         if (currentQ + 1 >= totalQ) {

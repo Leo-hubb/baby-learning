@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
+import SpeechInit from './components/SpeechInit';
 import English from './pages/English';
 import Literacy from './pages/Literacy';
 import Math from './pages/Math';
@@ -11,6 +12,7 @@ import Settings from './pages/Settings';
 export default function App() {
   return (
     <Layout>
+      <SpeechInit />
       <Routes>
         <Route path="/" element={<Navigate to="/english" replace />} />
         <Route path="/english/*" element={<English />} />

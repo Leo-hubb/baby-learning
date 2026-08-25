@@ -1,7 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppState } from '../store/useStore';
 import { generateLogicQuestion, getDifficulty } from '../data/logic';
-import { playCorrectSound, playWrongSound } from '../utils/speech';
+import {
+  speak, speakWelcome, speakPraise, speakEncourage,
+  playCorrectSound, playWrongSound, stopSpeaking
+} from '../utils/speech';
 import type { LogicQuestion } from '../types';
 import StarBurst from '../components/StarBurst';
 
@@ -13,11 +16,44 @@ export default function Logic() {
   const [streak, setStreak] = useState(0);
   const [totalAnswered, setTotalAnswered] = useState(0);
   const [starTrigger, setStarTrigger] = useState(0);
+  const hasWelcomed = useRef(false);
 
   const difficulty = getDifficulty(state.stats.logicQuestionCount);
 
+  // 进入模块时播放欢迎语
+  useEffect(() => {
+    if (!hasWelcomed.current) {
+      hasWelcomed.current = true;
+      const timer = setTimeout(() => speakWelcome('logic'), 500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
   useEffect(() => {
     setQuestion(generateLogicQuestion(difficulty));
+  }, []);
+
+  // 题目变化时自动朗读
+  useEffect(() => {
+    if (question) {
+      const timer = setTimeout(() => {
+        let text = question.description;
+        if (question.type === 'pattern' && question.sequence) {
+          text = '找规律，下一个是什么？';
+        } else if (question.type === 'matching') {
+          text = '找出一样的图形';
+        } else if (question.type === 'sorting') {
+          text = question.description.replace(/\n/g, '，');
+        }
+        speak(text, 'zh-CN', 0.9);
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [question]);
+
+  // 离开页面时停止语音
+  useEffect(() => {
+    return () => stopSpeaking();
   }, []);
 
   const nextQuestion = () => {
@@ -36,18 +72,21 @@ export default function Logic() {
     incrementStat('logicQuestionCount', 1);
     if (correct) {
       playCorrectSound();
+      setTimeout(() => speakPraise(), 300);
       setStreak(s => s + 1);
       addStars(1);
       setStarTrigger(t => t + 1);
       if (streak + 1 >= 10) {
         addStars(5);
         setStreak(0);
+        setTimeout(() => speak('连续答对十题，你真是逻辑大师！', 'zh-CN', 1.0, 1.2), 600);
       }
     } else {
       playWrongSound();
+      setTimeout(() => speakEncourage(), 300);
       setStreak(0);
     }
-    setTimeout(nextQuestion, 1500);
+    setTimeout(nextQuestion, 1800);
   };
 
   const typeLabel = (type: string) => {
@@ -84,10 +123,21 @@ export default function Logic() {
 
       {question && (
         <div>
-          <div className="text-center mb-2">
-            <span className="inline-block bg-candy-yellow text-gray-700 text-sm font-bold px-3 py-1 rounded-full">
+          <div className="text-center mb-4">
+            <span className="inline-block bg-candy-yellow text-gray-700 text-sm font-bold px-3 py-1 rounded-full mr-2">
               {typeLabel(question.type)}
             </span>
+            <button
+              onClick={() => {
+                let text = question.description;
+                if (question.type === 'pattern') text = '找规律，下一个是什么？';
+                else if (question.type === 'matching') text = '找出一样的图形';
+                speak(text, 'zh-CN');
+              }}
+              className="inline-block bg-candy-blue text-white text-sm font-bold px-3 py-1 rounded-full min-h-[32px] active:scale-95 transition-transform"
+            >
+              🔊 再听一遍
+            </button>
           </div>
 
           {/* Pattern display */}
